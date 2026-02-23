@@ -2,10 +2,17 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuickDrop - Zwei-Wege Transfer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QuickDrop Privat</title>
+    
+    <!-- PWA Meta Tags (Macht es zur installierbaren App) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#1e40af"> <!-- Dunkleres Blau zur Unterscheidung -->
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Share_icon.svg/512px-Share_icon.svg.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn {
@@ -13,6 +20,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
         #drop-zone.dragover { border-color: #3b82f6; background-color: #eff6ff; }
+        body { overscroll-behavior-y: contain; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex items-center justify-center p-4">
@@ -20,61 +28,55 @@
     <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden fade-in relative">
         
         <!-- Header -->
-        <div class="bg-blue-600 p-5 text-white flex justify-between items-center">
+        <div class="bg-blue-800 p-5 text-white flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                QuickDrop
+                QuickDrop Privat
             </h1>
-            <div id="connection-status" class="text-xs font-medium bg-blue-700 px-2 py-1 rounded-full flex items-center gap-1 opacity-50">
+            <div id="connection-status" class="text-xs font-medium bg-blue-900 px-2 py-1 rounded-full flex items-center gap-1 opacity-100">
                 <div class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                Wartet...
+                Suche Partner...
             </div>
         </div>
 
         <div class="p-6">
             
-            <!-- ANSICHT 1: SETUP (Nur für PC sichtbar, bis Handy scannt) -->
-            <div id="setup-view" class="space-y-6 text-center">
-                <div>
-                    <p class="text-sm text-gray-500 mb-4">Scanne den Code mit dem Handy, um den Kanal zu öffnen:</p>
-                    <div id="qrcode" class="flex justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl inline-block mx-auto"></div>
-                    <p class="text-xs text-gray-400 mt-2">Session ID: <span id="session-display" class="font-mono font-bold text-gray-700 text-lg tracking-widest"></span></p>
-                </div>
-
-                <div class="relative flex items-center py-2">
-                    <div class="flex-grow border-t border-gray-200"></div>
-                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-semibold">Oder</span>
-                    <div class="flex-grow border-t border-gray-200"></div>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500 mb-3">Mit anderem Gerät verbinden:</p>
-                    <div class="flex gap-2 max-w-xs mx-auto">
-                        <input type="text" id="manual-session-id" placeholder="ID eingeben" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-center font-mono uppercase focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" maxlength="6" onkeypress="if(event.key === 'Enter') connectManually()">
-                        <button onclick="connectManually()" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                            Verbinden
-                        </button>
-                    </div>
+            <!-- ANSICHT 0: ROLLEN-SETUP (Nur beim allerersten Öffnen sichtbar) -->
+            <div id="role-setup-view" class="hidden text-center py-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-2">Einmalige Einrichtung</h2>
+                <p class="text-sm text-gray-500 mb-6">Damit die Geräte sich finden, wähle bitte aus, was dieses Gerät ist:</p>
+                
+                <div class="flex gap-4 justify-center">
+                    <button onclick="setRole('pc')" class="flex-1 bg-gray-50 hover:bg-gray-100 border-2 border-gray-200 rounded-xl p-4 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-bold text-gray-700">Dies ist der PC</span>
+                    </button>
+                    <button onclick="setRole('handy')" class="flex-1 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 rounded-xl p-4 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-blue-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span class="font-bold text-blue-700">Dies ist die App</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- ANSICHT 2: HAUPTMENÜ (Sichtbar sobald verbunden) -->
+            <!-- ANSICHT 1: HAUPTMENÜ -->
             <div id="transfer-view" class="hidden space-y-5">
                 
-                <!-- Text senden Bereich -->
                 <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Text / Link senden</label>
                     <div class="flex gap-2">
                         <input type="text" id="text-input" placeholder="Tippe etwas..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                        <button onclick="sendTextMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <button onclick="sendTextMessage()" class="bg-blue-800 hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                             Senden
                         </button>
                     </div>
                 </div>
 
-                <!-- Datei senden Bereich -->
                 <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Datei senden</label>
                     <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer transition-colors duration-200 hover:bg-gray-100 bg-white">
@@ -86,7 +88,6 @@
                     </div>
                 </div>
 
-                <!-- Empfangs-Bereich (wird nur eingeblendet, wenn etwas ankommt) -->
                 <div id="received-area" class="hidden bg-green-50 border border-green-200 p-4 rounded-xl">
                     <div class="flex items-center gap-2 mb-2 text-green-700">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -97,7 +98,6 @@
                     <p id="received-content" class="text-sm text-gray-800 break-words bg-white p-3 rounded border border-green-100 shadow-sm"></p>
                     <button id="copy-btn" onclick="copyReceivedText()" class="hidden mt-2 text-xs text-green-700 font-medium hover:underline">In Zwischenablage kopieren</button>
                 </div>
-
             </div>
 
             <!-- OVERLAY: Fortschrittsbalken -->
@@ -120,9 +120,11 @@
     <script>
         const MAX_FILE_SIZE = 10 * 1024 * 1024;
         const CHUNK_SIZE = 500 * 1024;
+        
+        // Feste private Session-ID für deine eigene Kommunikation
+        const PRIVATE_CHANNEL_ID = "MY_PRIVATE_VAULT_99";
 
-        // UI Elemente
-        const setupView = document.getElementById('setup-view');
+        const roleSetupView = document.getElementById('role-setup-view');
         const transferView = document.getElementById('transfer-view');
         const progressOverlay = document.getElementById('progress-overlay');
         const statusBadge = document.getElementById('connection-status');
@@ -132,54 +134,43 @@
         const fileInput = document.getElementById('file-input');
         const dropZone = document.getElementById('drop-zone');
 
-        // Verbindungs-Logik
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlSessionId = urlParams.get('session');
-        const isJoiner = !!urlSessionId; // true, wenn das Handy über den Link kommt
-        
         let mySendSession, myListenSession;
-        let lastSeenTransferId = null; // Verhindert mehrfaches Herunterladen
+        let lastSeenTransferId = null; 
 
-        // Initialisierung je nach Rolle
-        if (isJoiner) {
-            // HANDY ROLLE
-            mySendSession = urlSessionId + '_JOINER'; // Handy schreibt auf den "_JOINER" Kanal
-            myListenSession = urlSessionId;           // Handy liest den normalen Kanal
-            
-            setConnectedUI();
-            sendHandshake(); // Dem PC sofort "Hallo" sagen
-            startPolling();
+        // Initialisierung
+        const savedRole = localStorage.getItem('quickdrop_role');
+        if (savedRole) {
+            startApp(savedRole);
         } else {
-            // PC ROLLE
-            const newSessionId = Math.random().toString(36).substring(2, 8).toUpperCase();
-            mySendSession = newSessionId;             // PC schreibt auf den normalen Kanal
-            myListenSession = newSessionId + '_JOINER';// PC liest den "_JOINER" Kanal
+            roleSetupView.classList.remove('hidden');
+            statusBadge.classList.add('hidden');
+        }
+
+        function setRole(role) {
+            localStorage.setItem('quickdrop_role', role);
+            roleSetupView.classList.add('hidden');
+            statusBadge.classList.remove('hidden');
+            startApp(role);
+        }
+
+        function startApp(role) {
+            transferView.classList.remove('hidden');
             
-            document.getElementById('session-display').innerText = newSessionId;
-            const connectUrl = window.location.href.split('?')[0] + '?session=' + newSessionId;
-            new QRCode(document.getElementById("qrcode"), { text: connectUrl, width: 160, height: 160 });
+            if (role === 'pc') {
+                mySendSession = PRIVATE_CHANNEL_ID + '_PC';             
+                myListenSession = PRIVATE_CHANNEL_ID + '_HANDY';
+            } else {
+                mySendSession = PRIVATE_CHANNEL_ID + '_HANDY'; 
+                myListenSession = PRIVATE_CHANNEL_ID + '_PC';           
+            }
             
+            sendHandshake();
             startPolling();
         }
 
-        function connectManually() {
-            const input = document.getElementById('manual-session-id');
-            const id = input.value.trim().toUpperCase();
-            if (id.length > 0) {
-                // Wir tun einfach so, als hätten wir einen QR-Code gescannt
-                window.location.href = window.location.pathname + '?session=' + id;
-            } else {
-                alert("Bitte eine Session-ID eingeben.");
-            }
-        }
-
-        // --- UI FUNKTIONEN ---
         function setConnectedUI() {
-            setupView.classList.add('hidden');
-            transferView.classList.remove('hidden');
             statusBadge.innerHTML = '<div class="w-2 h-2 bg-green-400 rounded-full"></div> Verbunden';
-            statusBadge.classList.replace('opacity-50', 'opacity-100');
-            statusBadge.classList.replace('bg-blue-700', 'bg-blue-800');
+            statusBadge.classList.replace('bg-blue-900', 'bg-blue-900');
         }
 
         function showProgress(text, fileName) {
@@ -188,9 +179,7 @@
             updateProgress(0, fileName);
         }
 
-        function hideProgress() {
-            progressOverlay.classList.add('hidden');
-        }
+        function hideProgress() { progressOverlay.classList.add('hidden'); }
 
         function updateProgress(percent, fileName) {
             document.getElementById('progress-bar').style.width = percent + '%';
@@ -207,6 +196,8 @@
                 receivedContent.innerText = text;
                 copyBtn.classList.remove('hidden');
             }
+            // Kleiner Ton zur Bestätigung
+            playNotificationSound();
         }
 
         function copyReceivedText() {
@@ -215,7 +206,21 @@
             setTimeout(() => copyBtn.innerText = "In Zwischenablage kopieren", 2000);
         }
 
-        // --- DRAG & DROP FÜR DATEIEN ---
+        function playNotificationSound() {
+            // Ein kurzer, unaufdringlicher Piep-Ton ohne externe MP3-Datei
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, ctx.currentTime);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.3);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+        }
+
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => { if(e.target.files.length > 0) handleFile(e.target.files[0]); });
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
@@ -225,25 +230,20 @@
             if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
         });
 
-        // --- SENDE FUNKTIONEN ---
         async function sendHandshake() {
-            // Signalisiert dem Partner, dass man da ist
             const meta = { type: 'sys_handshake', transferId: Date.now() };
             fetch(`/api/transfer?action=meta&sessionId=${mySendSession}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta)
-            }).catch(() => {}); // Ignorieren, falls es fehlschlägt
+            }).catch(() => {}); 
         }
 
         function sendTextMessage() {
             const textInput = document.getElementById('text-input');
             const text = textInput.value.trim();
             if (!text) return;
-            
-            // Text wie eine Datei behandeln
             const blob = new Blob([text], { type: 'text/plain' });
             blob.name = 'textnachricht.txt';
-            textInput.value = ''; // Feld leeren
-            
+            textInput.value = ''; 
             uploadDataInChunks(blob, true);
         }
 
@@ -256,7 +256,7 @@
             try {
                 showProgress(isText ? "Sende Text..." : "Sende Datei...", isText ? "Verschlüsselt..." : fileBlob.name);
                 const totalChunks = Math.ceil(fileBlob.size / CHUNK_SIZE);
-                const currentTransferId = Date.now(); // Eindeutige ID für diesen Vorgang
+                const currentTransferId = Date.now(); 
                 
                 const meta = {
                     fileName: fileBlob.name,
@@ -267,12 +267,10 @@
                     transferId: currentTransferId
                 };
                 
-                // 1. Meta-Daten senden
                 await fetch(`/api/transfer?action=meta&sessionId=${mySendSession}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta)
                 });
 
-                // 2. Chunks senden
                 for (let i = 0; i < totalChunks; i++) {
                     const start = i * CHUNK_SIZE;
                     const end = Math.min(start + CHUNK_SIZE, fileBlob.size);
@@ -291,7 +289,6 @@
                     updateProgress(((i + 1) / totalChunks) * 100, isText ? "" : fileBlob.name);
                 }
 
-                // Eigene Ansicht kurz bestätigen und dann wieder freigeben
                 document.getElementById('progress-text').innerText = "Erfolgreich gesendet!";
                 setTimeout(hideProgress, 800);
 
@@ -301,10 +298,8 @@
             }
         }
 
-        // --- EMPFANGS FUNKTIONEN (Polling) ---
         function startPolling() {
             let isDownloading = false;
-            
             setInterval(async () => {
                 if (isDownloading) return;
                 try {
@@ -312,24 +307,20 @@
                     if (!res.ok) return;
                     
                     const meta = await res.json();
-                    
-                    // Nichts Neues? Dann abbrechen.
                     if (meta.transferId === lastSeenTransferId) return;
                     lastSeenTransferId = meta.transferId;
 
-                    // Ist es nur ein Handshake (Verbindungsaufbau)?
                     if (meta.type === 'sys_handshake') {
                         setConnectedUI();
                         return;
                     }
 
-                    // Es ist eine echte Datei oder Text!
                     isDownloading = true;
                     await downloadChunks(meta);
                     isDownloading = false;
 
-                } catch (e) { /* Still warten */ }
-            }, 1500); // Alle 1,5 Sekunden fragen
+                } catch (e) { }
+            }, 1500); 
         }
 
         async function downloadChunks(meta) {
@@ -353,11 +344,9 @@
                 const finalBlob = new Blob(receivedBuffers, { type: meta.fileType });
                 
                 if (meta.isText) {
-                    // Als Text auf der Seite anzeigen
                     const textContent = await finalBlob.text();
                     displayReceivedContent(textContent, false);
                 } else {
-                    // Als Datei-Download auslösen
                     const downloadUrl = URL.createObjectURL(finalBlob);
                     const a = document.createElement('a');
                     a.href = downloadUrl;
