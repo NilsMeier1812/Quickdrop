@@ -22,7 +22,6 @@
 
     <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden fade-in">
         
-        <!-- Header -->
         <div class="bg-blue-600 p-6 text-white text-center">
             <h1 class="text-2xl font-bold flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -33,10 +32,8 @@
             <p class="text-blue-100 text-sm mt-1">Sicher, schnell, ohne Anmeldung.</p>
         </div>
 
-        <!-- Hauptbereich -->
         <div id="main-content" class="p-6">
             
-            <!-- SENDER ANSICHT (PC) -->
             <div id="sender-view" class="hidden space-y-6">
                 <div class="text-center">
                     <p class="text-sm text-gray-500 mb-4">Scanne diesen Code mit deinem Handy, um dich zu verbinden:</p>
@@ -56,7 +53,6 @@
                 </div>
             </div>
 
-            <!-- EMPFÄNGER ANSICHT (Handy) -->
             <div id="receiver-view" class="hidden text-center py-8">
                 <div class="animate-pulse mb-4">
                     <div class="h-16 w-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
@@ -70,7 +66,6 @@
                 <p class="text-xs text-gray-400 mt-4">Session: <span id="receiver-session-display" class="font-mono"></span></p>
             </div>
 
-            <!-- FORTSCHRITTSBALKEN -->
             <div id="progress-view" class="hidden py-4">
                 <div class="flex justify-between text-sm mb-1">
                     <span id="progress-text" class="font-medium text-gray-700">Übertragung...</span>
@@ -82,7 +77,6 @@
                 <p id="file-info" class="text-xs text-gray-500 mt-2 text-center"></p>
             </div>
 
-            <!-- ERFOLGSMELDUNG -->
             <div id="success-view" class="hidden text-center py-8">
                 <div class="h-16 w-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -100,8 +94,8 @@
     </div>
 
     <script>
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB in Bytes
-        const CHUNK_SIZE = 500 * 1024; // 500 KB pro Paket
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        const CHUNK_SIZE = 500 * 1024;
 
         const senderView = document.getElementById('sender-view');
         const receiverView = document.getElementById('receiver-view');
@@ -140,15 +134,10 @@
             setupDragAndDrop();
         }
 
-        function generateSessionId() {
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
-        }
-
+        function generateSessionId() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
         function formatBytes(bytes) {
             if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
@@ -160,26 +149,17 @@
 
         function setupDragAndDrop() {
             dropZone.addEventListener('click', () => fileInput.click());
-            fileInput.addEventListener('change', (e) => {
-                if(e.target.files.length > 0) handleFile(e.target.files[0]);
-            });
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.classList.add('dragover');
-            });
+            fileInput.addEventListener('change', (e) => { if(e.target.files.length > 0) handleFile(e.target.files[0]); });
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
             dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
             dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('dragover');
+                e.preventDefault(); dropZone.classList.remove('dragover');
                 if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
             });
         }
 
         function handleFile(file) {
-            if (file.size > MAX_FILE_SIZE) {
-                alert("Die Datei ist zu groß! Bitte maximal 10 MB.");
-                return;
-            }
+            if (file.size > MAX_FILE_SIZE) { alert("Die Datei ist zu groß! Bitte maximal 10 MB."); return; }
             senderView.classList.add('hidden');
             progressView.classList.remove('hidden');
             progressText.innerText = "Sende Datei...";
@@ -187,12 +167,11 @@
             uploadFileInChunks(file);
         }
 
-        // --- SENDER LOGIK (Upload) ---
+        // --- HIER IST DER NEUE FEHLER-DETEKTOR ---
         async function uploadFileInChunks(file) {
             try {
                 const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
                 
-                // 1. Metadaten ans Backend senden
                 const meta = {
                     fileName: file.name,
                     fileType: file.type || 'application/octet-stream',
@@ -200,11 +179,17 @@
                     totalChunks: totalChunks
                 };
                 
-                await fetch(`/api/transfer?action=meta&sessionId=${sessionId}`, {
+                // 1. Meta-Daten senden
+                const resMeta = await fetch(`/api/transfer?action=meta&sessionId=${sessionId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(meta)
                 });
+                
+                if (!resMeta.ok) {
+                    const errorText = await resMeta.text();
+                    throw new Error(`Server antwortete mit Status ${resMeta.status}: ${errorText}`);
+                }
 
                 // 2. Chunks iterieren und senden
                 for (let i = 0; i < totalChunks; i++) {
@@ -212,22 +197,24 @@
                     const end = Math.min(start + CHUNK_SIZE, file.size);
                     const chunkBlob = file.slice(start, end);
                     
-                    // Blob in reinen Base64 Text umwandeln
                     const base64Data = await new Promise(resolve => {
                         const reader = new FileReader();
                         reader.onload = () => resolve(reader.result.split(',')[1]);
                         reader.readAsDataURL(chunkBlob);
                     });
 
-                    // Chunk ans Backend senden
-                    await fetch(`/api/transfer?action=chunk&sessionId=${sessionId}&chunkIndex=${i}`, {
+                    const resChunk = await fetch(`/api/transfer?action=chunk&sessionId=${sessionId}&chunkIndex=${i}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ data: base64Data })
                     });
+                    
+                    if (!resChunk.ok) {
+                        const errorText = await resChunk.text();
+                        throw new Error(`Fehler beim Chunk ${i} (Status ${resChunk.status}): ${errorText}`);
+                    }
 
-                    const percentComplete = ((i + 1) / totalChunks) * 100;
-                    updateProgress(percentComplete, file.name);
+                    updateProgress(((i + 1) / totalChunks) * 100, file.name);
                 }
 
                 setTimeout(() => {
@@ -236,19 +223,20 @@
                 }, 500);
 
             } catch (error) {
-                console.error("Upload Fehler:", error);
-                alert("Fehler beim Hochladen der Datei.");
+                // HIER WIRD DER FEHLER JETZT SICHTBAR GEMACHT
+                console.error("EXAKTER FEHLER:", error);
+                alert("Upload abgebrochen!\n\nGrund:\n" + error.message);
+                
+                // Zurücksetzen
+                progressView.classList.add('hidden');
+                senderView.classList.remove('hidden');
             }
         }
 
-        // --- EMPFÄNGER LOGIK (Download) ---
         function startPollingForFile() {
             let isDownloading = false;
-            
-            // Alle 2 Sekunden nachfragen, ob die Datei da ist
             const pollInterval = setInterval(async () => {
                 if (isDownloading) return;
-
                 try {
                     const res = await fetch(`/api/transfer?action=meta&sessionId=${sessionId}`);
                     if (res.ok) {
@@ -257,10 +245,7 @@
                         clearInterval(pollInterval);
                         await downloadChunks(meta);
                     }
-                } catch (e) {
-                    // Ignorieren, falls die DB leer ist und Vercel z.B. einen 404 Fehler wirft
-                    console.log("Warte auf Datei...");
-                }
+                } catch (e) { console.log("Warte auf Datei..."); }
             }, 2000);
         }
 
@@ -273,38 +258,30 @@
 
                 const receivedBuffers = [];
 
-                // 1. Alle Chunks abrufen
                 for (let i = 0; i < meta.totalChunks; i++) {
                     const res = await fetch(`/api/transfer?action=chunk&sessionId=${sessionId}&chunkIndex=${i}`);
-                    
-                    if (!res.ok) throw new Error("Fehler beim Laden eines Teils.");
+                    if (!res.ok) throw new Error(`Fehler beim Laden von Teil ${i}`);
                     
                     const json = await res.json();
                     const base64Data = json.data;
 
-                    // Base64 Text wieder in echte Daten (Bytes) umwandeln
                     const binaryString = atob(base64Data);
                     const bytes = new Uint8Array(binaryString.length);
-                    for (let j = 0; j < binaryString.length; j++) {
-                        bytes[j] = binaryString.charCodeAt(j);
-                    }
+                    for (let j = 0; j < binaryString.length; j++) bytes[j] = binaryString.charCodeAt(j);
                     receivedBuffers.push(bytes);
 
                     updateProgress(((i + 1) / meta.totalChunks) * 100, meta.fileName);
                 }
 
-                // 2. Chunks zusammensetzen und Download auslösen
                 const finalBlob = new Blob(receivedBuffers, { type: meta.fileType });
                 const downloadUrl = URL.createObjectURL(finalBlob);
 
-                // Versteckten Link erstellen und automatischen Klick auslösen
                 const a = document.createElement('a');
                 a.href = downloadUrl;
                 a.download = meta.fileName;
                 document.body.appendChild(a);
                 a.click();
                 
-                // Aufräumen
                 a.remove();
                 URL.revokeObjectURL(downloadUrl);
 
@@ -315,10 +292,9 @@
 
             } catch (error) {
                 console.error("Download Fehler:", error);
-                alert("Fehler beim Empfangen der Datei.");
+                alert("Fehler beim Empfangen der Datei: " + error.message);
             }
         }
-
     </script>
 </body>
 </html>
