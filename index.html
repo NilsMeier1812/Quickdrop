@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickDrop - Lokaler Dateitransfer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #drop-zone.dragover {
+            border-color: #3b82f6; 
+            background-color: #eff6ff; 
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden fade-in">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                QuickDrop
+            </h1>
+            <p class="text-blue-100 text-sm mt-1">Sicher, schnell, ohne Anmeldung.</p>
+        </div>
+
+        <!-- Hauptbereich -->
+        <div id="main-content" class="p-6">
+            
+            <!-- SENDER ANSICHT (PC) -->
+            <div id="sender-view" class="hidden space-y-6">
+                <div class="text-center">
+                    <p class="text-sm text-gray-500 mb-4">Scanne diesen Code mit deinem Handy, um dich zu verbinden:</p>
+                    <div id="qrcode" class="flex justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl inline-block"></div>
+                    <p class="text-xs text-gray-400 mt-2">Session ID: <span id="session-display" class="font-mono text-gray-600"></span></p>
+                </div>
+
+                <div class="border-t border-gray-100 pt-6">
+                    <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer transition-colors duration-200 hover:bg-gray-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <p class="text-sm font-medium text-gray-700">Klicke oder ziehe eine Datei hierher</p>
+                        <p class="text-xs text-gray-500 mt-1">Maximal 10 MB (Bilder, Dokumente)</p>
+                        <input type="file" id="file-input" class="hidden" accept="*/*">
+                    </div>
+                </div>
+            </div>
+
+            <!-- EMPFÄNGER ANSICHT (Handy) -->
+            <div id="receiver-view" class="hidden text-center py-8">
+                <div class="animate-pulse mb-4">
+                    <div class="h-16 w-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </div>
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Verbunden!</h2>
+                <p class="text-gray-500 text-sm mt-2">Warte auf Datei vom PC...</p>
+                <p class="text-xs text-gray-400 mt-4">Session: <span id="receiver-session-display" class="font-mono"></span></p>
+            </div>
+
+            <!-- FORTSCHRITTSBALKEN -->
+            <div id="progress-view" class="hidden py-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span id="progress-text" class="font-medium text-gray-700">Übertragung...</span>
+                    <span id="progress-percentage" class="text-gray-500">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <p id="file-info" class="text-xs text-gray-500 mt-2 text-center"></p>
+            </div>
+
+            <!-- ERFOLGSMELDUNG -->
+            <div id="success-view" class="hidden text-center py-8">
+                <div class="h-16 w-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Fertig!</h2>
+                <p class="text-gray-500 text-sm mt-2">Die Datei wurde erfolgreich übertragen.</p>
+                <button onclick="location.reload()" class="mt-6 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium transition-colors">
+                    Neue Datei senden
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB in Bytes
+        const CHUNK_SIZE = 500 * 1024; // 500 KB pro Paket
+
+        const senderView = document.getElementById('sender-view');
+        const receiverView = document.getElementById('receiver-view');
+        const progressView = document.getElementById('progress-view');
+        const successView = document.getElementById('success-view');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const progressText = document.getElementById('progress-text');
+        const fileInfo = document.getElementById('file-info');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let sessionId = urlParams.get('session');
+        const isReceiver = !!sessionId;
+
+        if (isReceiver) {
+            document.getElementById('receiver-session-display').innerText = sessionId;
+            receiverView.classList.remove('hidden');
+            startPollingForFile();
+        } else {
+            sessionId = generateSessionId();
+            document.getElementById('session-display').innerText = sessionId;
+            
+            const connectUrl = window.location.href.split('?')[0] + '?session=' + sessionId;
+            new QRCode(document.getElementById("qrcode"), {
+                text: connectUrl,
+                width: 150,
+                height: 150,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L
+            });
+
+            senderView.classList.remove('hidden');
+            setupDragAndDrop();
+        }
+
+        function generateSessionId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function updateProgress(percent, fileName) {
+            progressBar.style.width = percent + '%';
+            progressPercentage.innerText = Math.round(percent) + '%';
+            fileInfo.innerText = fileName;
+        }
+
+        function setupDragAndDrop() {
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => {
+                if(e.target.files.length > 0) handleFile(e.target.files[0]);
+            });
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+            });
+        }
+
+        function handleFile(file) {
+            if (file.size > MAX_FILE_SIZE) {
+                alert("Die Datei ist zu groß! Bitte maximal 10 MB.");
+                return;
+            }
+            senderView.classList.add('hidden');
+            progressView.classList.remove('hidden');
+            progressText.innerText = "Sende Datei...";
+            updateProgress(0, file.name + ' (' + formatBytes(file.size) + ')');
+            uploadFileInChunks(file);
+        }
+
+        // --- SENDER LOGIK (Upload) ---
+        async function uploadFileInChunks(file) {
+            try {
+                const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+                
+                // 1. Metadaten ans Backend senden
+                const meta = {
+                    fileName: file.name,
+                    fileType: file.type || 'application/octet-stream',
+                    fileSize: file.size,
+                    totalChunks: totalChunks
+                };
+                
+                await fetch(`/api/transfer?action=meta&sessionId=${sessionId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(meta)
+                });
+
+                // 2. Chunks iterieren und senden
+                for (let i = 0; i < totalChunks; i++) {
+                    const start = i * CHUNK_SIZE;
+                    const end = Math.min(start + CHUNK_SIZE, file.size);
+                    const chunkBlob = file.slice(start, end);
+                    
+                    // Blob in reinen Base64 Text umwandeln
+                    const base64Data = await new Promise(resolve => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.readAsDataURL(chunkBlob);
+                    });
+
+                    // Chunk ans Backend senden
+                    await fetch(`/api/transfer?action=chunk&sessionId=${sessionId}&chunkIndex=${i}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: base64Data })
+                    });
+
+                    const percentComplete = ((i + 1) / totalChunks) * 100;
+                    updateProgress(percentComplete, file.name);
+                }
+
+                setTimeout(() => {
+                    progressView.classList.add('hidden');
+                    successView.classList.remove('hidden');
+                }, 500);
+
+            } catch (error) {
+                console.error("Upload Fehler:", error);
+                alert("Fehler beim Hochladen der Datei.");
+            }
+        }
+
+        // --- EMPFÄNGER LOGIK (Download) ---
+        function startPollingForFile() {
+            let isDownloading = false;
+            
+            // Alle 2 Sekunden nachfragen, ob die Datei da ist
+            const pollInterval = setInterval(async () => {
+                if (isDownloading) return;
+
+                try {
+                    const res = await fetch(`/api/transfer?action=meta&sessionId=${sessionId}`);
+                    if (res.ok) {
+                        const meta = await res.json();
+                        isDownloading = true;
+                        clearInterval(pollInterval);
+                        await downloadChunks(meta);
+                    }
+                } catch (e) {
+                    // Ignorieren, falls die DB leer ist und Vercel z.B. einen 404 Fehler wirft
+                    console.log("Warte auf Datei...");
+                }
+            }, 2000);
+        }
+
+        async function downloadChunks(meta) {
+            try {
+                receiverView.classList.add('hidden');
+                progressView.classList.remove('hidden');
+                progressText.innerText = "Empfange Datei...";
+                updateProgress(0, meta.fileName);
+
+                const receivedBuffers = [];
+
+                // 1. Alle Chunks abrufen
+                for (let i = 0; i < meta.totalChunks; i++) {
+                    const res = await fetch(`/api/transfer?action=chunk&sessionId=${sessionId}&chunkIndex=${i}`);
+                    
+                    if (!res.ok) throw new Error("Fehler beim Laden eines Teils.");
+                    
+                    const json = await res.json();
+                    const base64Data = json.data;
+
+                    // Base64 Text wieder in echte Daten (Bytes) umwandeln
+                    const binaryString = atob(base64Data);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let j = 0; j < binaryString.length; j++) {
+                        bytes[j] = binaryString.charCodeAt(j);
+                    }
+                    receivedBuffers.push(bytes);
+
+                    updateProgress(((i + 1) / meta.totalChunks) * 100, meta.fileName);
+                }
+
+                // 2. Chunks zusammensetzen und Download auslösen
+                const finalBlob = new Blob(receivedBuffers, { type: meta.fileType });
+                const downloadUrl = URL.createObjectURL(finalBlob);
+
+                // Versteckten Link erstellen und automatischen Klick auslösen
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = meta.fileName;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Aufräumen
+                a.remove();
+                URL.revokeObjectURL(downloadUrl);
+
+                setTimeout(() => {
+                    progressView.classList.add('hidden');
+                    successView.classList.remove('hidden');
+                }, 500);
+
+            } catch (error) {
+                console.error("Download Fehler:", error);
+                alert("Fehler beim Empfangen der Datei.");
+            }
+        }
+
+    </script>
+</body>
+</html>
