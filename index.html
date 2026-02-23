@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QuickDrop Privat</title>
     
-    <!-- PWA Meta Tags (Macht es zur installierbaren App) -->
+    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="theme-color" content="#1e40af"> <!-- Dunkleres Blau zur Unterscheidung -->
+    <meta name="theme-color" content="#1e40af">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Share_icon.svg/512px-Share_icon.svg.png">
+
+    <!-- EINGEBETTETES MANIFEST (Data-URI) -->
+    <link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"QuickDrop Privat","short_name":"QuickDrop","start_url":".","display":"standalone","background_color":"#f3f4f6","theme_color":"#1e40af","icons":[{"src":"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Share_icon.svg/512px-Share_icon.svg.png","sizes":"512x512","type":"image/png"}]}'>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -43,7 +46,7 @@
 
         <div class="p-6">
             
-            <!-- ANSICHT 0: ROLLEN-SETUP (Nur beim allerersten Öffnen sichtbar) -->
+            <!-- ANSICHT 0: ROLLEN-SETUP -->
             <div id="role-setup-view" class="hidden text-center py-6">
                 <h2 class="text-lg font-bold text-gray-800 mb-2">Einmalige Einrichtung</h2>
                 <p class="text-sm text-gray-500 mb-6">Damit die Geräte sich finden, wähle bitte aus, was dieses Gerät ist:</p>
@@ -118,6 +121,13 @@
     </div>
 
     <script>
+        // --- EINGEBETTETER SERVICE WORKER (Für den App-Download) ---
+        if ('serviceWorker' in navigator) {
+            const swCode = "self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));";
+            const swBlob = new Blob([swCode], {type: 'application/javascript'});
+            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log("SW Fehler:", err));
+        }
+
         const MAX_FILE_SIZE = 10 * 1024 * 1024;
         const CHUNK_SIZE = 500 * 1024;
         
@@ -137,7 +147,6 @@
         let mySendSession, myListenSession;
         let lastSeenTransferId = null; 
 
-        // Initialisierung
         const savedRole = localStorage.getItem('quickdrop_role');
         if (savedRole) {
             startApp(savedRole);
@@ -196,7 +205,6 @@
                 receivedContent.innerText = text;
                 copyBtn.classList.remove('hidden');
             }
-            // Kleiner Ton zur Bestätigung
             playNotificationSound();
         }
 
@@ -207,7 +215,6 @@
         }
 
         function playNotificationSound() {
-            // Ein kurzer, unaufdringlicher Piep-Ton ohne externe MP3-Datei
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
