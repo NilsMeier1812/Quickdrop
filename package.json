@@ -1,0 +1,11 @@
+{
+  "name": "quickdrop",
+  "version": "1.0.0",
+  "description": "Lokaler Dateitransfer mit Vercel und Upstash",
+  "scripts": {
+    "start": "node"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.0"
+  }
+}
