@@ -12,8 +12,8 @@
     <meta name="theme-color" content="#1e40af">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Share_icon.svg/512px-Share_icon.svg.png">
 
-    <!-- EINGEBETTETES MANIFEST (Data-URI) -->
-    <link rel="manifest" href='data:application/manifest+json;charset=utf-8,{"name":"QuickDrop Privat","short_name":"QuickDrop","start_url":".","display":"standalone","background_color":"#f3f4f6","theme_color":"#1e40af","icons":[{"src":"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Share_icon.svg/512px-Share_icon.svg.png","sizes":"512x512","type":"image/png"}]}'>
+    <!-- ECHTES MANIFEST VERLINKEN -->
+    <link rel="manifest" href="/manifest.json">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -121,11 +121,13 @@
     </div>
 
     <script>
-        // --- EINGEBETTETER SERVICE WORKER (Für den App-Download) ---
+        // --- ECHTEN SERVICE WORKER REGISTRIEREN ---
         if ('serviceWorker' in navigator) {
-            const swCode = "self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));";
-            const swBlob = new Blob([swCode], {type: 'application/javascript'});
-            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log("SW Fehler:", err));
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(() => console.log("Service Worker registriert"))
+                    .catch(err => console.error("SW Fehler:", err));
+            });
         }
 
         const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -147,6 +149,7 @@
         let mySendSession, myListenSession;
         let lastSeenTransferId = null; 
 
+        // Initialisierung
         const savedRole = localStorage.getItem('quickdrop_role');
         if (savedRole) {
             startApp(savedRole);
@@ -215,17 +218,21 @@
         }
 
         function playNotificationSound() {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(800, ctx.currentTime);
-            gain.gain.setValueAtTime(0.1, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.3);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.3);
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.3);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {
+                // Sound ignorieren, falls der Browser es blockiert
+            }
         }
 
         dropZone.addEventListener('click', () => fileInput.click());
