@@ -37,9 +37,27 @@
             
             <!-- ANSICHT 1: SETUP (Nur für PC sichtbar, bis Handy scannt) -->
             <div id="setup-view" class="space-y-6 text-center">
-                <p class="text-sm text-gray-500">Scanne den Code mit dem Handy, um den Kanal zu öffnen:</p>
-                <div id="qrcode" class="flex justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl inline-block mx-auto"></div>
-                <p class="text-xs text-gray-400">Session ID: <span id="session-display" class="font-mono"></span></p>
+                <div>
+                    <p class="text-sm text-gray-500 mb-4">Scanne den Code mit dem Handy, um den Kanal zu öffnen:</p>
+                    <div id="qrcode" class="flex justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl inline-block mx-auto"></div>
+                    <p class="text-xs text-gray-400 mt-2">Session ID: <span id="session-display" class="font-mono font-bold text-gray-700 text-lg tracking-widest"></span></p>
+                </div>
+
+                <div class="relative flex items-center py-2">
+                    <div class="flex-grow border-t border-gray-200"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-semibold">Oder</span>
+                    <div class="flex-grow border-t border-gray-200"></div>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500 mb-3">Mit anderem Gerät verbinden:</p>
+                    <div class="flex gap-2 max-w-xs mx-auto">
+                        <input type="text" id="manual-session-id" placeholder="ID eingeben" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-center font-mono uppercase focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" maxlength="6" onkeypress="if(event.key === 'Enter') connectManually()">
+                        <button onclick="connectManually()" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            Verbinden
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- ANSICHT 2: HAUPTMENÜ (Sichtbar sobald verbunden) -->
@@ -142,6 +160,17 @@
             new QRCode(document.getElementById("qrcode"), { text: connectUrl, width: 160, height: 160 });
             
             startPolling();
+        }
+
+        function connectManually() {
+            const input = document.getElementById('manual-session-id');
+            const id = input.value.trim().toUpperCase();
+            if (id.length > 0) {
+                // Wir tun einfach so, als hätten wir einen QR-Code gescannt
+                window.location.href = window.location.pathname + '?session=' + id;
+            } else {
+                alert("Bitte eine Session-ID eingeben.");
+            }
         }
 
         // --- UI FUNKTIONEN ---
